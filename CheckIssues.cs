@@ -125,13 +125,18 @@ namespace NetFree_Check_Issues
                 {
                     try
                     {
-                        Ping pinger = new Ping();
-                        PingReply gmail = pinger.Send("mail.google.com");
-                        if (gmail.Status == IPStatus.Success)
-                            return 2;
+                        using (var client = new WebClient())
+                        {
+                            using (var stream = client.OpenRead("https://mail.google.com"))
+                            {
+                                return 2;
+                            }
+                        }
                     }
-                    catch { };
-                    return 1;
+                    catch
+                    {
+                        return 1;
+                    }
                 }
             }
             return 0;
