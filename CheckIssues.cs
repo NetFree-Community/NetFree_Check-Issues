@@ -115,7 +115,7 @@ namespace NetFree_Check_Issues
         {
             if (isp == "")
                 return -1;
-            X509Store store = new X509Store(StoreName.Root, StoreLocation.CurrentUser);
+            X509Store store = new X509Store(StoreName.Root, StoreLocation.LocalMachine);
 
             store.Open(OpenFlags.ReadOnly);
 
@@ -148,7 +148,7 @@ namespace NetFree_Check_Issues
             {
                 WebClient client = new WebClient();
                 byte[] CertFile = client.DownloadData("http://netfree.link/netfree-ca.crt"); ;
-                X509Store store = new X509Store(StoreName.Root, StoreLocation.CurrentUser);
+                X509Store store = new X509Store(StoreName.Root, StoreLocation.LocalMachine);
                 X509Certificate2 cert = new X509Certificate2();
                 cert.Import(CertFile);
                 store.Open(OpenFlags.ReadWrite);
