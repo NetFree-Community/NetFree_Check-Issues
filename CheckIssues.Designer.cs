@@ -185,7 +185,6 @@
             this.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
             this.RightToLeftLayout = true;
             this.Text = "בדיקת בעיות BETA";
-            this.Load += new System.EventHandler(this.CheckIssues_Load);
             this.table.ResumeLayout(false);
             this.table.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();

@@ -41,15 +41,10 @@ namespace NetFree_Check_Issues
             InitializeComponent();
             loader.Size = layout.Size;
             loader.Location = layout.Location;
-            CheckStores(MyIspIssuerName());
+            CheckStores();
             refresh();
         }
-
-        private void CheckIssues_Load(object sender, EventArgs e)
-        {
-
-        }
-
+        
         public DateTime InternetTime()
         {
             DateTime datetime = DateTime.MinValue;
@@ -112,20 +107,18 @@ namespace NetFree_Check_Issues
             return InternetTime().ToLocalTime().Date == DateTime.Now.Date;
         }
 
-        private int CheckCert(string ispIssuerName)
+        private int CheckCert()
         {
-            if (ispIssuerName == "")
+            if (!IsNetFree())
                 return -1;
             X509Store store = new X509Store(StoreName.Root, StoreLocation.LocalMachine);
+
             store.Open(OpenFlags.ReadOnly);
-
-            var Cert = store.Certificates.Find(
-                X509FindType.FindByIssuerName,
-                "NetFree Sign ," + ispIssuerName,
-                false);
-
-            if (Cert != null && Cert.Count > 0)
+            string CertIssuer = MyCert().Issuer;
+            foreach (X509Certificate2 Cert in store.Certificates)
             {
+                if (Cert.Issuer == CertIssuer)//check if issuer is same as downloaded issuer
+                {
                     try
                     {
                         using (var client = new WebClient())
@@ -141,10 +134,12 @@ namespace NetFree_Check_Issues
                         return 1;
                     }
                 }
+            }
+
             return 0;
         }
 
-        private void CheckStores(string ispIssuerName)
+        private void CheckStores()
         {
             Boolean HasOther = false;
             List<StoreLocation> StoreLocations = new List<StoreLocation>
@@ -165,7 +160,7 @@ namespace NetFree_Check_Issues
                 StoreName.TrustedPublisher
             };
             X509Store store;
-
+            string CertIssuer = MyCert().Issuer;
             foreach (StoreLocation storelocation in StoreLocations)
             {
                 foreach (StoreName storename in StoreNames)
@@ -181,14 +176,14 @@ namespace NetFree_Check_Issues
                         {
                             DialogResult Response =  MessageBox.Show("תוכנה זו דורש הרשאות מנהל", "שגיאה", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error);
                             if (Response == System.Windows.Forms.DialogResult.Retry)
-                                CheckStores(ispIssuerName);
+                                CheckStores();
                             else
                                 Environment.Exit(1);
                         }
 
                         foreach (X509Certificate2 Cert in store.Certificates)
                         {
-                            if (Cert.Issuer.Contains("NetFree Sign ," + ispIssuerName))
+                            if (Cert.Issuer == CertIssuer)
                             {
                                 HasOther = true;
                                 store.Remove(Cert);
@@ -198,23 +193,32 @@ namespace NetFree_Check_Issues
                     }
                 }
             }
-            if (HasOther && CheckCert(ispIssuerName) == 0)
+            if (HasOther && CheckCert() == 0)
             {
                 CertInstall();
             }
+        }
+
+        private X509Certificate2 MyCert()
+        {
+            try
+            {
+                WebClient client = new WebClient();
+                byte[] CertFile = client.DownloadData("http://netfree.link/netfree-ca.crt");
+                X509Certificate2 cert = new X509Certificate2();
+                cert.Import(CertFile);
+                return cert;
+            }
+            catch { return null; }
         }
 
         private void CertInstall()
         {
             try
             {
-                WebClient client = new WebClient();
-                byte[] CertFile = client.DownloadData("http://netfree.link/netfree-ca.crt");
                 X509Store store = new X509Store(StoreName.Root, StoreLocation.LocalMachine);
-                X509Certificate2 cert = new X509Certificate2();
-                cert.Import(CertFile);
                 store.Open(OpenFlags.ReadWrite);
-                store.Add(cert);
+                store.Add(MyCert());
                 store.Close();
             }
             catch { };
@@ -228,7 +232,7 @@ namespace NetFree_Check_Issues
                            ((x & 0xff000000) >> 24));
         }
 
-        private string MyIspIssuerName()
+        private bool IsNetFree()
         {
             string ISP = "";
             using (var client = new WebClient())
@@ -240,18 +244,8 @@ namespace NetFree_Check_Issues
                 }
                 catch { };
 
-                if (ISP.Contains("@rl-internet"))
-                    ISP = "RL ISP";
-                else if (ISP.Contains("@019"))
-                    ISP = "019";
-                else if (ISP.Contains("@URI"))
-                    ISP = "NISIM-VPN";
-                else if (ISP.Contains("@netfree-anywhere"))
-                    ISP = "NetFreeAnywhere";
-                else
-                    ISP = "";
             }
-            return ISP;
+            return ISP != "";
         }
 
         private int Connected()
@@ -298,19 +292,19 @@ namespace NetFree_Check_Issues
             loader.Visible = true;
             if (Connected() == 2)
             {
-                string isp = MyIspIssuerName();
+                int CertStatus = CheckCert();
                 Cert.Visible = true;
                 ISP.Visible = true;
                 TimeCorrect.Visible = true;
                 Internet.Text = "אינטרנט מחובר";
-                if (CheckCert(isp) == 2)
+                if (CertStatus == 2)
                     Cert.Text = "תעודה מותקן";
-                else if (CheckCert(isp) == 1)
+                else if (CertStatus == 1)
                 {
                     Cert.Text = "תעודה לא עובד";
                     fixcert.Visible = true;
                 }
-                else if (CheckCert(isp) == 0)
+                else if (CertStatus == 0)
                 {
                     Cert.Text = "תעודה לא מותקן";
                     fixcert.Visible = true;
@@ -318,8 +312,8 @@ namespace NetFree_Check_Issues
                 else
                     Cert.Text = "אין ספק נטפרי";
 
-                if (isp != "")
-                    ISP.Text = isp;
+                if (IsNetFree())
+                    ISP.Text = "מחובר לספק נטפרי";
                 else
                     ISP.Text = "לא מחובר לספק נטפרי";
 
@@ -367,8 +361,9 @@ namespace NetFree_Check_Issues
         private void fixcert_Click(object sender, EventArgs e)
         {
             CertInstall();
+            int CertStatus = CheckCert();
             refresh();
-            if (CheckCert(MyIspIssuerName()) == 1 || CheckCert(MyIspIssuerName()) == 2)
+            if (CertStatus == 1 || CertStatus == 2)
             {
                 MessageBox.Show("התעודה הותקן בהצלחה", "התקנת תעודת אבטחה", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
