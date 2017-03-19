@@ -111,17 +111,19 @@ namespace NetFree_Check_Issues
             return InternetTime().ToLocalTime().Date == DateTime.Now.Date;
         }
 
-        private int CheckCert(string isp)
+        private int CheckCert(string ispIssuerName)
         {
-            if (isp == "")
+            if (ispIssuerName == "")
                 return -1;
             X509Store store = new X509Store(StoreName.Root, StoreLocation.LocalMachine);
-
             store.Open(OpenFlags.ReadOnly);
 
-            foreach (X509Certificate2 Cert in store.Certificates)
-            {
-                if (Cert.Issuer.Contains("NetFree Sign") && Cert.Issuer.Contains(isp))
+            var Cert = store.Certificates.Find(
+                X509FindType.FindByIssuerName,
+                "NetFree Sign ," + ispIssuerName,
+                false);
+
+            if (Cert != null && Cert.Count > 0)
                 {
                     try
                     {
@@ -138,7 +140,6 @@ namespace NetFree_Check_Issues
                         return 1;
                     }
                 }
-            }
             return 0;
         }
 
@@ -166,7 +167,7 @@ namespace NetFree_Check_Issues
                            ((x & 0xff000000) >> 24));
         }
 
-        private string MyIsp()
+        private string MyIspIssuerName()
         {
             string ISP = "";
             using (var client = new WebClient())
@@ -179,7 +180,7 @@ namespace NetFree_Check_Issues
                 catch { };
 
                 if (ISP.Contains("@rl-internet"))
-                    ISP = "RL";
+                    ISP = "RL ISP";
                 else if (ISP.Contains("@019"))
                     ISP = "019";
                 else if (ISP.Contains("@URI"))
