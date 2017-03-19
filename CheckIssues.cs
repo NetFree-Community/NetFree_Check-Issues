@@ -237,7 +237,7 @@ namespace NetFree_Check_Issues
             loader.Visible = true;
             if (Connected() == 2)
             {
-                string isp = MyIsp();
+                string isp = MyIspIssuerName();
                 Cert.Visible = true;
                 ISP.Visible = true;
                 TimeCorrect.Visible = true;
@@ -307,7 +307,7 @@ namespace NetFree_Check_Issues
         {
             CertInstall();
             refresh();
-            if (CheckCert(MyIsp()) == 1 || CheckCert(MyIsp()) == 2)
+            if (CheckCert(MyIspIssuerName()) == 1 || CheckCert(MyIspIssuerName()) == 2)
             {
                 MessageBox.Show("התעודה הותקן בהצלחה", "התקנת תעודת אבטחה", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
