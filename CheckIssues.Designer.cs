@@ -140,7 +140,6 @@
             this.loader.SizeMode = System.Windows.Forms.PictureBoxSizeMode.CenterImage;
             this.loader.TabIndex = 7;
             this.loader.TabStop = false;
-            this.loader.Visible = false;
             // 
             // layout
             // 

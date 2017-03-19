@@ -41,6 +41,7 @@ namespace NetFree_Check_Issues
             InitializeComponent();
             loader.Size = layout.Size;
             loader.Location = layout.Location;
+            CheckStores(MyIspIssuerName());
             refresh();
         }
 
@@ -124,7 +125,7 @@ namespace NetFree_Check_Issues
                 false);
 
             if (Cert != null && Cert.Count > 0)
-                {
+            {
                     try
                     {
                         using (var client = new WebClient())
@@ -143,17 +144,77 @@ namespace NetFree_Check_Issues
             return 0;
         }
 
+        private void CheckStores(string ispIssuerName)
+        {
+            Boolean HasOther = false;
+            List<StoreLocation> StoreLocations = new List<StoreLocation>
+            {
+                StoreLocation.CurrentUser,
+                StoreLocation.LocalMachine
+            };
+
+            List<StoreName> StoreNames = new List<StoreName>
+            {
+                StoreName.AddressBook,
+                StoreName.AuthRoot,
+                StoreName.CertificateAuthority,
+                StoreName.Disallowed,
+                StoreName.My,
+                StoreName.Root,
+                StoreName.TrustedPeople,
+                StoreName.TrustedPublisher
+            };
+            X509Store store;
+
+            foreach (StoreLocation storelocation in StoreLocations)
+            {
+                foreach (StoreName storename in StoreNames)
+                {
+                    if (storelocation != StoreLocation.LocalMachine || storename != StoreName.Root)
+                    {
+                        store = new X509Store(StoreName.Root, StoreLocation.LocalMachine);
+                        try
+                        {
+                            store.Open(OpenFlags.ReadWrite);
+                        }
+                        catch
+                        {
+                            DialogResult Response =  MessageBox.Show("תוכנה זו דורש הרשאות מנהל", "שגיאה", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error);
+                            if (Response == System.Windows.Forms.DialogResult.Retry)
+                                CheckStores(ispIssuerName);
+                            else
+                                Environment.Exit(1);
+                        }
+
+                        foreach (X509Certificate2 Cert in store.Certificates)
+                        {
+                            if (Cert.Issuer.Contains("NetFree Sign ," + ispIssuerName))
+                            {
+                                HasOther = true;
+                                store.Remove(Cert);
+                            }
+                        }
+                        store.Close();
+                    }
+                }
+            }
+            if (HasOther && CheckCert(ispIssuerName) == 0)
+            {
+                CertInstall();
+            }
+        }
+
         private void CertInstall()
         {
             try
             {
                 WebClient client = new WebClient();
-                byte[] CertFile = client.DownloadData("http://netfree.link/netfree-ca.crt"); ;
+                byte[] CertFile = client.DownloadData("http://netfree.link/netfree-ca.crt");
                 X509Store store = new X509Store(StoreName.Root, StoreLocation.LocalMachine);
                 X509Certificate2 cert = new X509Certificate2();
                 cert.Import(CertFile);
                 store.Open(OpenFlags.ReadWrite);
-                store.Add(cert); //where cert is an X509Certificate object
+                store.Add(cert);
                 store.Close();
             }
             catch { };
